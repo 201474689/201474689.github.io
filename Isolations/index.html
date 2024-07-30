@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Directory Listing</title>
+    <style>
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 5px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <h1>Directory Listing</h1>
+    <table id="directoryTable">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Download</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <script>
+        function fetchDirectoryContent(path) {
+            const url = `https://api.github.com/repos/201474689/201474689.github.io/contents/${path}`;
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    const tbody = document.querySelector('#directoryTable tbody');
+                    tbody.innerHTML = ''; // 清空现有内容
+
+                    data.forEach(item => {
+                        const row = document.createElement('tr');
+
+                        const nameCell = document.createElement('td');
+                        const typeCell = document.createElement('td');
+                        const downloadCell = document.createElement('td');
+
+                        if (item.type === 'dir') {
+                            const link = document.createElement('a');
+                            link.href = '#';
+                            link.textContent = item.name;
+                            link.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                fetchDirectoryContent(`${path}/${item.name}`);
+                            });
+                            nameCell.appendChild(link);
+                            typeCell.textContent = 'Directory';
+                            downloadCell.textContent = '';
+                        } else {
+                            const downloadLink = document.createElement('a');
+                            downloadLink.href = item.download_url;
+                            downloadLink.textContent = item.name;
+                            downloadLink.download = item.name;
+                            nameCell.textContent = item.name;
+                            typeCell.textContent = 'File';
+                            downloadCell.appendChild(downloadLink);
+                        }
+
+                        row.appendChild(nameCell);
+                        row.appendChild(typeCell);
+                        row.appendChild(downloadCell);
+
+                        tbody.appendChild(row);
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        // 调用函数并传入顶级目录
+        fetchDirectoryContent('Isolations');
+    </script>
+</body>
+</html>
