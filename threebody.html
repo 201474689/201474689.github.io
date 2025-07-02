@@ -1,75 +1,53 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>精确引力三体运动模型</title>
+    <title>三体运动模型</title>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background-color: #000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            color: white;
-            font-family: Arial, sans-serif;
-        }
-        canvas {
-            border: 1px solid #333;
-            box-shadow: 0 0 20px rgba(0, 150, 255, 0.5);
-        }
-        .controls {
+        body { margin: 0; overflow: hidden; background: black; }
+        canvas { display: block; }
+        #controls {
             position: absolute;
             top: 10px;
             left: 10px;
-            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            background: rgba(0,0,0,0.5);
             padding: 10px;
             border-radius: 5px;
         }
         button {
-            background: #0066cc;
+            background: #444;
             color: white;
             border: none;
             padding: 5px 10px;
-            margin: 5px;
+            margin: 2px;
             border-radius: 3px;
-            cursor: pointer;
-        }
-        button:hover {
-            background: #0088ff;
-        }
-        .info {
-            margin-top: 10px;
-            font-size: 12px;
         }
     </style>
 </head>
 <body>
-    <div class="controls">
-        <button id="reset">重置模拟</button>
-        <button id="toggleTrails">切换轨迹</button>
-        <div>主星体: <span id="primaryCount">3</span></div>
-        <div>次级星体: <span id="secondaryCount">12</span></div>
-        <div class="info">引力计算: F=G·m₁m₂/r²</div>
+    <div id="controls">
+        <button id="reset">重置</button>
+        <span>主星体: <span id="primaryCount">3</span></span>
+        <span>次级星体: <span id="secondaryCount">12</span></span>
     </div>
-    <canvas id="simulationCanvas"></canvas>
+    <canvas id="canvas"></canvas>
 
     <script>
-       
-        const canvas = document.getElementById('simulationCanvas');
+        const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        canvas.width = window.innerWidth * 0.9;
-        canvas.height = window.innerHeight * 0.9;
-
-
+        const resetBtn = document.getElementById('reset');
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        
         const G = 6.67430e-11;
-        const scale = 1e9; 
-        const massScale = 1e24; 
-        const timeStep = 86400; 
-        const minDistance = 1e6; 
-     
+        const scale = 1e9;
+        const timeStep = 86400;
+        
         class Body {
             constructor(x, y, vx, vy, mass, radius, color, isPrimary) {
                 this.x = x;
@@ -82,77 +60,50 @@
                 this.isPrimary = isPrimary;
                 this.ax = 0;
                 this.ay = 0;
-                this.fx = 0; 
-                this.fy = 0; 
             }
 
-           
-            calculateForces(otherBodies) {
-                this.fx = 0;
-                this.fy = 0;
+            updateForces(bodies) {
+                this.ax = 0;
+                this.ay = 0;
                 
-                for (const body of otherBodies) {
+                for (const body of bodies) {
                     if (body === this) continue;
                     
-                   
                     const dx = body.x - this.x;
                     const dy = body.y - this.y;
-                    const distanceSq = dx * dx + dy * dy;
-                    const distance = Math.sqrt(distanceSq);
+                    const distSq = dx * dx + dy * dy;
+                    const dist = Math.sqrt(distSq);
                     
-                
-                    if (distance < (this.radius + body.radius)) {
-                        if (!this.isPrimary && body.isPrimary) {
-                            return true;
-                        }
+                    if (dist < this.radius + body.radius) {
+                        if (!this.isPrimary && body.isPrimary) return true;
                         continue;
                     }
                     
-                    F = G * m1 * m2 / r²
-                    const forceMagnitude = G * this.mass * body.mass / 
-                                         (Math.max(distanceSq, minDistance) * scale * scale);
-                    
-                
-                    const fx = forceMagnitude * dx / distance;
-                    const fy = forceMagnitude * dy / distance;
-                    
-            
-                    this.fx += fx;
-                    this.fy += fy;
+                    const force = G * body.mass / (distSq * scale);
+                    this.ax += force * dx / dist;
+                    this.ay += force * dy / dist;
                 }
-                
-                return false; 
+                return false;
             }
 
-             (F = ma → a = F/m)
-            update() {
-               
-                this.ax = this.fx / this.mass;
-                this.ay = this.fy / this.mass;
-                
-                (v = v0 + a*Δt)
+            updatePosition() {
                 this.vx += this.ax * timeStep;
                 this.vy += this.ay * timeStep;
-                
-     (x = x0 + v*Δt)
                 this.x += this.vx * timeStep;
                 this.y += this.vy * timeStep;
                 
-        
                 if (this.x < 0) this.x = canvas.width;
                 if (this.x > canvas.width) this.x = 0;
                 if (this.y < 0) this.y = canvas.height;
                 if (this.y > canvas.height) this.y = 0;
             }
 
-           
-            draw(ctx) {
+            draw() {
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
                 ctx.fillStyle = this.color;
                 ctx.fill();
                 
-           
                 if (this.isPrimary) {
                     const gradient = ctx.createRadialGradient(
                         this.x, this.y, this.radius,
@@ -172,57 +123,40 @@
                 this.bodies = [];
                 this.primaryBodies = [];
                 this.secondaryBodies = [];
-                this.trailPoints = [];
-                this.maxTrailPoints = 100;
-                this.showTrails = true;
-                this.initialize();
+                this.init();
             }
 
-            initialize() {
+            init() {
                 this.bodies = [];
                 this.primaryBodies = [];
                 this.secondaryBodies = [];
-                this.trailPoints = [];
                 
-               
                 const colors = ['#ff5555', '#55ff55', '#5555ff'];
-                const masses = [5, 3, 4]; 
                 for (let i = 0; i < 3; i++) {
                     const angle = (i / 3) * Math.PI * 2;
-                    const distance = canvas.width / 4;
-                    const mass = masses[i] * 1e28; 
-                    const radius = 10 + masses[i] * 3;
-              
-                    const x = canvas.width / 2 + Math.cos(angle) * distance;
-                    const y = canvas.height / 2 + Math.sin(angle) * distance;
-                    
-                 
-                    const speed = 2e3 * (1 + Math.random() * 0.2);
+                    const dist = canvas.width / 4;
+                    const x = canvas.width / 2 + Math.cos(angle) * dist;
+                    const y = canvas.height / 2 + Math.sin(angle) * dist;
+                    const speed = 2e3;
                     const vx = -Math.sin(angle) * speed;
                     const vy = Math.cos(angle) * speed;
                     
-                    const body = new Body(x, y, vx, vy, mass, radius, colors[i], true);
+                    const body = new Body(x, y, vx, vy, 1e28, 15, colors[i], true);
                     this.bodies.push(body);
                     this.primaryBodies.push(body);
                 }
                 
-        
                 for (let i = 0; i < 12; i++) {
                     const angle = Math.random() * Math.PI * 2;
-                    const distance = canvas.width / 3 * (0.2 + Math.random() * 0.6);
-                    const mass = (0.5 + Math.random() * 1.5) * 1e22; // 次级星体质量小很多
-                    const radius = 2 + Math.random() * 3;
-                    
-                    const x = canvas.width / 2 + Math.cos(angle) * distance;
-                    const y = canvas.height / 2 + Math.sin(angle) * distance;
-                    
-                  
+                    const dist = canvas.width / 3 * (0.2 + Math.random() * 0.6);
+                    const x = canvas.width / 2 + Math.cos(angle) * dist;
+                    const y = canvas.height / 2 + Math.sin(angle) * dist;
                     const speed = 1e3 * (0.5 + Math.random());
                     const vx = -Math.sin(angle) * speed * (Math.random() > 0.5 ? 1 : -1);
                     const vy = Math.cos(angle) * speed * (Math.random() > 0.5 ? 1 : -1);
                     
                     const body = new Body(
-                        x, y, vx, vy, mass, radius, 
+                        x, y, vx, vy, 1e22, 3, 
                         `hsl(${Math.random() * 360}, 80%, 60%)`, 
                         false
                     );
@@ -233,116 +167,42 @@
                 this.updateCounters();
             }
 
-   
             updateCounters() {
                 document.getElementById('primaryCount').textContent = this.primaryBodies.length;
                 document.getElementById('secondaryCount').textContent = this.secondaryBodies.length;
             }
 
-          
-            run() {
-                
+            update() {
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 
-         
-                if (this.showTrails) {
-                    const currentPoints = this.primaryBodies.map(body => ({ x: body.x, y: body.y }));
-                    this.trailPoints.push(currentPoints);
-                    if (this.trailPoints.length > this.maxTrailPoints) {
-                        this.trailPoints.shift();
-                    }
-                    
-            
-                    this.drawTrails();
-                }
-                
-              
-                const bodiesToRemove = [];
-                
+                const toRemove = [];
                 for (const body of this.bodies) {
-                    const shouldRemove = body.calculateForces(this.bodies);
-                    if (shouldRemove) {
-                        bodiesToRemove.push(body);
+                    if (body.updateForces(this.bodies)) {
+                        toRemove.push(body);
                     }
                 }
                 
-              
-                for (const body of bodiesToRemove) {
+                for (const body of toRemove) {
                     const index = this.bodies.indexOf(body);
-                    if (index !== -1) {
-                        this.bodies.splice(index, 1);
-                    }
-                    
+                    if (index !== -1) this.bodies.splice(index, 1);
                     const secIndex = this.secondaryBodies.indexOf(body);
-                    if (secIndex !== -1) {
-                        this.secondaryBodies.splice(secIndex, 1);
-                    }
+                    if (secIndex !== -1) this.secondaryBodies.splice(secIndex, 1);
                 }
                 
-     
                 for (const body of this.bodies) {
-                    body.update();
-                }
-                
-            
-                for (const body of this.bodies) {
-                    body.draw(ctx);
+                    body.updatePosition();
+                    body.draw();
                 }
                 
                 this.updateCounters();
-                
-            
-                requestAnimationFrame(() => this.run());
-            }
-            
-           
-            drawTrails() {
-                for (let i = 0; i < this.primaryBodies.length; i++) {
-                    ctx.beginPath();
-                    for (let j = 0; j < this.trailPoints.length; j++) {
-                        const point = this.trailPoints[j][i];
-                        if (j === 0) {
-                            ctx.moveTo(point.x, point.y);
-                        } else {
-                            ctx.lineTo(point.x, point.y);
-                        }
-                    }
-                    ctx.strokeStyle = this.primaryBodies[i].color + '80';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-                }
-            }
-            
-          
-            toggleTrails() {
-                this.showTrails = !this.showTrails;
-                if (!this.showTrails) {
-                    this.trailPoints = [];
-                }
+                requestAnimationFrame(() => this.update());
             }
         }
 
-      
-        const simulation = new Simulation();
-        
-    
-        document.getElementById('reset').addEventListener('click', () => {
-            simulation.initialize();
-        });
-        
-     
-        document.getElementById('toggleTrails').addEventListener('click', () => {
-            simulation.toggleTrails();
-        });
-        
-     
-        window.addEventListener('resize', () => {
-            canvas.width = window.innerWidth * 0.9;
-            canvas.height = window.innerHeight * 0.9;
-        });
-        
-        simulation.run();
+        const sim = new Simulation();
+        resetBtn.addEventListener('click', () => sim.init());
+        sim.update();
     </script>
 </body>
 </html>
